@@ -1,7 +1,7 @@
 # JH71xx-tools
 Bootloader recovery and updater tool for StarFive JH7100 SoCs.
 
-![Screenshot](https://github.com/kprasadvnsi/JH71xx-tools/images/screenshot.png)
+![Screenshot](https://github.com/kprasadvnsi/JH71xx-tools/raw/main/images/screenshot.png)
 
 Command Line Parameters
 -----------------------
