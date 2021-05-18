@@ -41,3 +41,9 @@ $ ./jh7100-recover -D /dev/ttyUSB0 \
 -b bootloader-BEAGLEV-buildroot.bin.out \
 -d ddrinit-2133-buildroot.bin.out
 ```
+
+## Tutorial
+
+1. A very nice tutorial by Lakshantha Dissanayake from Seeed.
+
+    [Update bootloader, ddr init boot, u-boot and recover bootloader.](https://wiki.seeedstudio.com/BeagleV-Update-bootloader-ddr-init-boot-uboot-Recover-bootloader/)
