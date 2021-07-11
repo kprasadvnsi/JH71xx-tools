@@ -41,8 +41,6 @@
 #define PBWIDTH 40
 
 #define DEBUG_BAUD 9600
-#define SUCCESS_STRLENGTH		16	/* updata success */
-#define UPDATE_SECBOOT_STRLENGTH	22	/* 0:updata second boot */
 
 #define XMODEM_PAYLOAD_LEN	128	/* the length of xmodem packet payload*/
 #define BUFF_SIZE		128	/* the length of buffer*/
@@ -54,6 +52,10 @@ struct xmodem_packet {
 	uint8_t payload[XMODEM_PAYLOAD_LEN];
 	uint16_t crc;
 } __attribute__((packed));
+
+static const char bootrom_str[] = "(C)SiFive\r\n";
+static const char success_str[] = "updata success\r\n";
+static const char xmodem_str[] = "send a file by xmodem\r\n";
 
 static const char *serial_device;
 static const char *progname;
@@ -129,7 +131,7 @@ static int xmodem_send(int serial_f, const char *filename)
 		return -errno;
 	}
 
-	printf("\nWaiting for XMODEM request[C]...\n");
+	printf("\tWaiting for XMODEM request[C]...\n");
 	fflush(stdout);
 
 	debug("[probing C]:");
@@ -142,7 +144,7 @@ static int xmodem_send(int serial_f, const char *filename)
 		debug("%c", response);
 	} while (response != 'C');
 	debug("Got C");
-	printf("Sending %s \n", filename);
+	printf("\tSending %s \n", filename);
 
 	packet.block = 1;
 	packet.start = SOH;
@@ -248,26 +250,26 @@ static int open_serial(const char *path, int baud, int canonical)
 	return fd;
 }
 
-static void check_success(int success_text_len)
+static void check_success(void)
 {
 	int ret, serial_f;
 	char buf[BUFF_SIZE];
 
-	printf("\nAwaiting confirmation...\n");
+	printf("Awaiting confirmation...\n");
 
 	serial_f = open_serial(serial_device, DEBUG_BAUD, 1);
 	if (serial_f < 0)
 		exit(EXIT_FAILURE);
 
-	//FIXME: Do we have a better way to check the result?
 	do {
 		ret = read(serial_f, buf, sizeof(buf));
+		buf[ret] = '\0';
 
-		buf[ret] = '\0'; //for debug only
 		debug("GOT[%d]:%s", ret, buf);
-	} while(ret != success_text_len);
+	} while(strcmp(success_str, buf));
+	debug("Hit: updata success");
 
-	printf("done.\n");
+	printf("done.\n\n");
 	close(serial_f);
 }
 
@@ -280,17 +282,17 @@ static void initialize(void)
 	if (serial_f < 0)
 		exit(EXIT_FAILURE);
 
-	printf("Waiting for bootloader mode...\n");
+	printf("Waiting for bootloader mode on %s...\n", serial_device);
 
-	//FIXME: Do we have a better way to check the result?
 	do {
 		ret = read(serial_f, buf, BUFF_SIZE);
+		buf[ret] = '\0';
 
-		buf[ret] = '\0'; //for debug only
 		debug("GOT[%d]:%s", ret, buf);
-	} while(ret < 10);
+	} while(strcmp(bootrom_str, buf));
+	debug("Hit: (C)SiFive");
 
-	printf("Bootloader mode active\n");
+	printf("Bootloader mode active\n\n");
 	close(serial_f);
 }
 
@@ -336,24 +338,26 @@ static void select_update_option(int option)
 		ret = write(serial_f, &o2, sizeof(o2));
 		if (ret != sizeof(o2))
 			exit(EXIT_FAILURE);
+		debug("SEND[%lu]:%s", sizeof(o2), o2);
 	} else {
 		ret = write(serial_f, &o1, sizeof(o1));
 		if (ret != sizeof(o1))
 			exit(EXIT_FAILURE);
+		debug("SEND[%lu]:%s", sizeof(o1), o1);
 	}
 
 	ret = write(serial_f, &new_line, sizeof(new_line));
 	if (ret != sizeof(new_line))
 		exit(EXIT_FAILURE);
+	debug("SEND[%lu]:CR LF", sizeof(new_line));
 
-	//FIXME: Do we have a better way to check the result?
 	do {
 		ret = read(serial_f, buf, BUFF_SIZE);
+		buf[ret] = '\0';
 
-		buf[ret] = '\0'; //for debug only
 		debug("GOT[%d]:%s", ret, buf);
-	} while(ret != UPDATE_SECBOOT_STRLENGTH);
-	debug("Hit: 0:updata second boot");
+	} while(strcmp(xmodem_str, buf));
+	debug("Hit: send a file by xmodem");
 
 	close(serial_f);
 }
@@ -371,7 +375,7 @@ static void update_firmware(const char *filename)
 		exit(EXIT_FAILURE);
 
 	close(serial_f);
-	check_success(SUCCESS_STRLENGTH);
+	check_success();
 }
 
 static void usage(void)
@@ -432,7 +436,9 @@ int main(int argc, char **argv)
 	}
 
 	if(recovery_f) {
+		printf("Uploading recovery binary...\n");
 		send_recovery(recovery_f);
+		printf("\n----------Enter recovery mode----------\n");
 	} else {
 		fprintf(stderr, "Need recovery file.\n");
 		goto error;
@@ -440,14 +446,17 @@ int main(int argc, char **argv)
 
 	if (bootloader_f || ddr_init_f) {
 		if(bootloader_f) {
+			printf("Updating bootloader...\n");
 			select_update_option(0);
 			update_firmware(bootloader_f);
 		}
 
 		if(ddr_init_f) {
+			printf("Updating dduinit...\n");
 			select_update_option(1);
 			update_firmware(ddr_init_f);
 		}
+		printf("\nFirmware update completed!\n");
 		exit(EXIT_SUCCESS);
 	}
 
