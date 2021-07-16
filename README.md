@@ -22,14 +22,14 @@ gcc -o jh7100-recover jh7100-recover.c
 
 ```
 $ ./jh7100-recover -D /dev/ttyUSB0 \
--r vic_second_boot.bin \
+-r jh7100_recovery_boot.bin \
 -b bootloader-BEAGLEV-buildroot.bin.out
 ```
 2. Update DRAM initialization firmware.
 
 ```
 $ ./jh7100-recover -D /dev/ttyUSB0 \
--r vic_second_boot.bin \
+-r jh7100_recovery_boot.bin \
 -d ddrinit-2133-buildroot.bin.out
 ```
 
@@ -37,7 +37,7 @@ $ ./jh7100-recover -D /dev/ttyUSB0 \
 
 ```
 $ ./jh7100-recover -D /dev/ttyUSB0 \
--r vic_second_boot.bin \
+-r jh7100_recovery_boot.bin \
 -b bootloader-BEAGLEV-buildroot.bin.out \
 -d ddrinit-2133-buildroot.bin.out
 ```
