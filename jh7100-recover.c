@@ -53,7 +53,7 @@ struct xmodem_packet {
 	uint16_t crc;
 } __attribute__((packed));
 
-static const char bootrom_str[] = "(C)SiFive\r\n";
+static const char bootrom_str[] = "(C)SiFive";
 static const char success_str[] = "updata success\r\n";
 static const char xmodem_str[] = "send a file by xmodem\r\n";
 
@@ -218,6 +218,8 @@ static int open_serial(const char *path, int baud, int canonical)
 		return -errno;
 	}
 
+	tcflush(fd, TCIOFLUSH);
+
 	memset(&tty, 0, sizeof(tty));
 	if (tcgetattr(fd, &tty) != 0) {
 		perror("tcgetattr");
@@ -273,27 +275,43 @@ static void check_success(void)
 	close(serial_f);
 }
 
-static void initialize(void)
+static void wait_for(const char *str)
 {
-	int ret, serial_f;
-	char buf[BUFF_SIZE];
+	int fd, ret;
+	char buf;
+	const char *pos = str;
 
-	serial_f = open_serial(serial_device, DEBUG_BAUD, 1);
-	if (serial_f < 0)
+	fd = open_serial(serial_device, DEBUG_BAUD, 1);
+	if (fd < 0)
 		exit(EXIT_FAILURE);
 
+	while (*pos) {
+		ret = read(fd, &buf, 1);
+		if (ret == -1) {
+			if (errno == EAGAIN)
+				continue;
+			perror("read");
+			exit(EXIT_FAILURE);
+		}
+		if (!ret)
+			continue;
+
+		debug("0x%2x, %c", buf, buf < 0x20 ? ' ' : buf);
+		if (*pos == buf)
+			++pos;
+		else
+			pos = str;
+	}
+	close(fd);
+}
+
+static void initialize(void)
+{
 	printf("Waiting for bootloader mode on %s...\n", serial_device);
 
-	do {
-		ret = read(serial_f, buf, BUFF_SIZE);
-		buf[ret] = '\0';
-
-		debug("GOT[%d]:%s", ret, buf);
-	} while(strcmp(bootrom_str, buf));
-	debug("Hit: (C)SiFive");
+	wait_for(bootrom_str);
 
 	printf("Bootloader mode active\n\n");
-	close(serial_f);
 }
 
 static void send_recovery(const char *filename)
