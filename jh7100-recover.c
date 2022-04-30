@@ -401,7 +401,8 @@ static const struct option long_options[] = {
 
 int main(int argc, char **argv)
 {
-	char c, *recovery_f = NULL, *bootloader_f = NULL, *ddr_init_f = NULL;
+	char *recovery_f = NULL, *bootloader_f = NULL, *ddr_init_f = NULL;
+	int c;
 
 	progname = argv[0];
 
